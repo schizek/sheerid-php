@@ -117,6 +117,22 @@ class SheerID {
 			return false;
 		}
 	}
+    
+    /**
+     * Send Asset
+     * 
+     * @param string $token
+     * @param string $file
+     * @return array|null
+     */
+    public function send_asset($token, $file) {
+        try {
+            $resp = $this->post("/asset", array("token" => $token, "file" => $file));
+            return json_decode($resp["responseText"]);
+        } catch (Exception $e) {
+            return null;
+        }
+    }
 	
 	function updateMetadata($requestId, $meta) {
 		try {
@@ -137,20 +153,14 @@ class SheerID {
 		//TODO: use service
 		$fields = array("FIRST_NAME", "LAST_NAME");
 		
-		if (count(array_intersect(array('STUDENT_FULL_TIME','STUDENT_PART_TIME','ACTIVE_DUTY','VETERAN','MILITARY_RETIREE','RESERVIST'), $affiliation_types))) {
+                if (array_search('STUDENT_FULL_TIME', $affiliation_types) !== FALSE || array_search('STUDENT_PART_TIME', $affiliation_types) !== FALSE || array_search('ACTIVE_DUTY', $affiliation_types) !== FALSE || array_search('VETERAN', $affiliation_types) !== FALSE) {
                         $fields[] = 'BIRTH_DATE';
                 }
                 if (array_search('FACULTY', $affiliation_types) !== FALSE) {
                         $fields[] = 'POSTAL_CODE';
                 }
-		if (count(array_intersect(array('VETERAN','MILITARY_RETIREE','RESERVIST'), $affiliation_types))) {
+		if (array_search('VETERAN', $affiliation_types) !== FALSE) {
 			$fields[] = "STATUS_START_DATE";
-		}
-		if (array_search('NON_PROFIT', $affiliation_types) !== FALSE) {
-			$fields[] = 'ID_NUMBER';
-		}
-		if (array_search('MILITARY_FAMILY', $affiliation_types) !== FALSE) {
-			$fields[] = 'RELATIONSHIP';
 		}
  
                 return $fields;
@@ -158,13 +168,11 @@ class SheerID {
 	
 	public function getOrganizationType($affiliation_types) {
 		//TODO: improve / use service
-		if (count(array_intersect(array('ACTIVE_DUTY','VETERAN','MILITARY_RETIREE','RESERVIST','MILITARY_FAMILY'), $affiliation_types))) {
+		if (array_search("ACTIVE_DUTY", $affiliation_types) !== false || array_search("VETERAN", $affiliation_types) !== false) {
 			return "MILITARY";
-		} else if (count(array_intersect(array('STUDENT_FULL_TIME','STUDENT_PART_TIME','FACULTY'), $affiliation_types))) {
+		} else {
 			return "UNIVERSITY";
 		}
-		// TODO: map other types
-		return null;
 	}
 	
 	/* utility methods */
@@ -228,7 +236,7 @@ class SheerIDRequest {
 		
 		if ("POST" === $this->method){
 			curl_setopt($ch, CURLOPT_POST, TRUE);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, (isset($this->params['file'])) ? $this->params : $query);
 			
 			if ($this->verbose) {
 				error_log("[SheerID] POST $url $query");
@@ -249,7 +257,7 @@ class SheerIDRequest {
 			throw new Exception($err);
 		} else {
 			$status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-			
+            
 			if ($status != 200 && $status != 204) {
 				throw new Exception("Server returned status code: $status for url: $url");
 			}
